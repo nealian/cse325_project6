@@ -1,6 +1,9 @@
 #ifndef _SANIC_FS_H_
 #define _SANIC_FS_H_
 
+#define BLOCK_TERMINATOR 0
+#define BLOCK_FREE -1
+
 typedef struct t_directory_entry {
   char* filename; // 16 bytes maximum
   short start; // block offset
@@ -8,7 +11,7 @@ typedef struct t_directory_entry {
 
 typedef struct t_file_descriptor {
   short start; // block file offset
-  int offset; // byte offset
+  int offset; // seek offset
 } file_descriptor;
 
 /**
