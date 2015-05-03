@@ -1,0 +1,90 @@
+\documentclass[paper=a4, fontsize=11pt]{scrartcl}
+\usepackage[T1]{fontenc}
+\usepackage{fourier} % We're using the Utopia font because it's great.
+\usepackage{enumerate} % Allows for custom enumeration types
+\usepackage{tikz} % Graphics powered by TikZ!
+\usepackage{xcolor} % More colors
+\usepackage{listings} % For shell output
+\usepackage{nameref} % Reference sections by name, since we're avoiding section numbering
+
+\usetikzlibrary{positioning} % Relative positioning of nodes
+\usetikzlibrary{automata} % Handy stuff for state machine diagrams
+\usetikzlibrary{shapes.multipart} % Multiline node labels
+
+\tikzstyle{every state}=[fill=orange!30, draw=orange, very thick]
+\tikzstyle{free}=[fill=white]
+\tikzstyle{link}=[->, draw=cyan, very thick]
+
+\lstdefinestyle{ShellStyle} {
+  basicstyle=\small\ttfamily,
+  numbers=none,
+  frame=tblr,
+  columns=fullflexible,
+  backgroundcolor=\color{blue!10},
+  linewidth=0.9\linewidth,
+  xleftmargin=0.1\linewidth
+}
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} % Horizontal rule with weight arg
+
+\title{
+  \normalfont \normalsize 
+  \textsc{New Mexico Tech} \\ [25pt]
+  \horrule{0.5pt} \\[0.4cm]
+  \huge CSE 325 --- Lab Project 6 \\ Simple File System \\
+  \horrule{2pt} \\[0.5cm]
+}
+
+\author{Rob Kelly \& Ian Neal \\ SANIC TEEM}
+\date{\normalsize\today}
+
+\begin{document}
+\maketitle
+
+%%% INTRODUCTION %%%
+% TODO
+% The SANIC TEEM Maniac Middle Management Memory Minder (hereafter referred to as \textit{the project}) is a highly-configurable simulated memory manager with a number of different contiguous memory allocation strategies available for use. Specifically, these allocation strategies are as follows:
+
+% \begin{description}
+%   \item[First Fit], which will allocate the suitable\footnote{Here, a ``suitable'' block is a block that is not currently allocated and is large enough to fit the new data.} block that is sequentially first in memory,
+
+%   \item[Best Fit], which will allocate the smallest suitable block,
+
+%   \item[Worst Fit], which will allocate the largest suitable block, and
+
+%   \item[Next Fit], which will allocate the suitable block that is sequentially first in memory \textbf{after the last block allocated,} wrapping around to the start of addressable space upon reaching the end.
+% \end{description}
+
+% Most of the codebase of this project was given as part of the lab assignment. We have implemented the functionality of the project in the following files:
+
+% \begin{itemize}
+%   \item Implementation of all described functionality in \texttt{mymem.c}.
+
+%   \item This README, the \LaTeX\hspace{0em} source of which may be found in \texttt{README.tex}.
+
+%   \item Build targets for the added files and this README in the \texttt{Makefile}.
+% \end{itemize}
+
+%%% BUILDING %%%
+\section*{Building}
+\begin{itemize}
+  \item \texttt{make} to build the project \& testing harness normally.
+
+  \item \texttt{make doc} to build this README. Requires \texttt{pdflatex} and a number of \LaTeX\hspace{0em} packages, all of which are included in the popular \textbf{TeX Live} distribution.
+
+  \item \texttt{make clean} to clean up temporary files, build files, and output.
+\end{itemize} 
+
+%%% USAGE %%%
+\section*{Usage}
+\texttt{./fs\_test}
+
+%%% DESIGN %%%
+\section*{Design \& Implementation}
+% TODO
+
+%%% BUGS %%%
+\section*{Known Bugs}
+% TODO
+
+\end{document}
