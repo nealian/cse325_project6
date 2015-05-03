@@ -1,16 +1,16 @@
 CC = gcc
 CCOPTS = -c -g -Wall
-LINKOPTS = -g -lrt 
+LINKOPTS = -g -lrt
 
 TEX = pdflatex
 README = README.tex
 
-EXEC=
+EXEC=fs_test
 OBJECTS=disk.o sanic_fs.o
 
 all: $(EXEC)
 
-$(EXEC): $(OBJECTS)
+$(EXEC): testrunner.c $(OBJECTS)
 	$(CC) $(LINKOPTS) -o $@ $^
 
 %.o:%.c
