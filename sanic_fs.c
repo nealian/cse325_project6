@@ -1,8 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include "sanic_fs.h"
 #include "disk.h"
+
+directory_entry directory[MAX_FILES];
+file_descriptor descriptor_table[MAX_DESCRIPTORS];
+int files, descriptors;
 
 int make_fs(char* disk_name){
   // TODO
@@ -20,13 +25,46 @@ int umount_fs(char* disk_name){
 }
 
 int fs_open(char* name){
-  // TODO
-  return -1;
+
+  /* Make sure we can open another file descriptor */
+  if (descriptors >= MAX_DESCRIPTORS) {
+    fprintf(stderr, "Error: Too many file descriptors open.\n");
+    return -1;
+  } else {
+    /* Search for filename in directory table */
+    // TODO: we could do this better
+    int i;
+    for (i = 0; i < MAX_FILES; i++) {
+      if (directory[i].start != 0
+          && strcmp(directory[i].filename, name) == 0) {
+        
+        /* Make a new file descriptor and insert into table */
+        int j;
+        for (j = 0; j < MAX_DESCRIPTORS; j++) {
+          if (descriptor_table[j].start == 0) {
+            descriptor_table[j].start = directory[i].start;
+            descriptor_table[j].offset = 0;
+            return j;
+          }
+        }
+      }
+    }
+
+    fprintf(stderr, "Error: Could not find file %s\n", name);
+    return -1;
+  }
 }
 
 int fs_close(int fildes){
-  // TODO
-  return -1;
+  if (fildes < 0 || fildes >= MAX_DESCRIPTORS
+      || descriptor_table[fildes].start == 0) {
+    fprintf(stderr, "Error: Invalid file descriptor.\n");
+    return -1;
+  } else {
+    descriptor_table[fildes].start = 0;
+    descriptor_table[fildes].offset = 0;
+    return 0;
+  }
 }
 
 int fs_create(char* name){

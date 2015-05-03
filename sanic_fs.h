@@ -4,6 +4,9 @@
 #define BLOCK_TERMINATOR 0
 #define BLOCK_FREE -1
 
+#define MAX_FILES 64
+#define MAX_DESCRIPTORS 32
+
 typedef struct t_directory_entry {
   char* filename; // 16 bytes maximum
   short start; // block offset
