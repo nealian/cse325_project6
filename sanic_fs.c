@@ -28,7 +28,7 @@ int fs_open(char* name){
 
   /* Make sure we can open another file descriptor */
   if (descriptors >= MAX_DESCRIPTORS) {
-    fprintf(stderr, "Error: Too many file descriptors open.\n");
+    fprintf(stderr, "fs_open: Too many file descriptors open.\n");
     return -1;
   } else {
     /* Search for filename in directory table */
@@ -50,7 +50,7 @@ int fs_open(char* name){
       }
     }
 
-    fprintf(stderr, "Error: Could not find file %s\n", name);
+    fprintf(stderr, "fs_open: Could not find file %s\n", name);
     return -1;
   }
 }
@@ -58,7 +58,7 @@ int fs_open(char* name){
 int fs_close(int fildes){
   if (fildes < 0 || fildes >= MAX_DESCRIPTORS
       || descriptor_table[fildes].start == 0) {
-    fprintf(stderr, "Error: Invalid file descriptor.\n");
+    fprintf(stderr, "fs_close: Invalid file descriptor.\n");
     return -1;
   } else {
     descriptor_table[fildes].start = 0;
