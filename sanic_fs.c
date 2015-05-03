@@ -19,8 +19,35 @@ int make_fs(char* disk_name){
 }
 
 int mount_fs(char* disk_name){
-  // TODO
-  return -1;
+  if(open_disk(disk_name)) {
+    fprintf(stderr, "mount_fs: Could not open disk.\n");
+    return -1;
+  }
+
+  /* Read entire super block into buffer */
+  char* buffer = malloc(BLOCK_SIZE);
+  if(block_read(SUPER_BLOCK, buffer)) {
+    fprintf(stderr, "mount_fs: Failed to read super block from disk.\n");
+    return -1;
+  }
+  /* Extract directory table into memory */
+  memcpy(&directory, buffer, sizeof(directory));
+  free(buffer);
+
+  /* Count files */
+  files = 0;
+  int i;
+  for (i = 0; i < MAX_FILES; i++) {
+    if (directory[i].start != 0) {
+      files++;
+    }
+  }
+
+  /* Initialize descriptor table */
+  memset(descriptor_table, 0, sizeof(descriptor_table));
+  descriptors = 0;
+
+  return 0;
 }
 
 int umount_fs(char* disk_name){

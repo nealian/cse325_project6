@@ -4,6 +4,8 @@
 #define BLOCK_TERMINATOR -1
 #define BLOCK_FREE 0
 
+#define SUPER_BLOCK 0
+
 #define MAX_FILES 64
 #define MAX_DESCRIPTORS 32
 
