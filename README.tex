@@ -42,28 +42,7 @@
 \maketitle
 
 %%% INTRODUCTION %%%
-% TODO
-% The SANIC TEEM Maniac Middle Management Memory Minder (hereafter referred to as \textit{the project}) is a highly-configurable simulated memory manager with a number of different contiguous memory allocation strategies available for use. Specifically, these allocation strategies are as follows:
-
-% \begin{description}
-%   \item[First Fit], which will allocate the suitable\footnote{Here, a ``suitable'' block is a block that is not currently allocated and is large enough to fit the new data.} block that is sequentially first in memory,
-
-%   \item[Best Fit], which will allocate the smallest suitable block,
-
-%   \item[Worst Fit], which will allocate the largest suitable block, and
-
-%   \item[Next Fit], which will allocate the suitable block that is sequentially first in memory \textbf{after the last block allocated,} wrapping around to the start of addressable space upon reaching the end.
-% \end{description}
-
-% Most of the codebase of this project was given as part of the lab assignment. We have implemented the functionality of the project in the following files:
-
-% \begin{itemize}
-%   \item Implementation of all described functionality in \texttt{mymem.c}.
-
-%   \item This README, the \LaTeX\hspace{0em} source of which may be found in \texttt{README.tex}.
-
-%   \item Build targets for the added files and this README in the \texttt{Makefile}.
-% \end{itemize}
+The SANIC TEEM Gotta-Go-FAT Simple File System (hereafter referred to as \textit{the file system}) is a simple-yet-elegant file system simulated in a virtual disk in an existing operating environment. This file system is implemented as a library of access and management functions in \texttt{sanic\_fs.h}, but this distribution also includes a testing harness (\texttt{testrunner.c}) to display the capabilities of the file system. The file system supports creation and deletion of up to 64 files in the single root-level directory, no more than 32MB cumulatively in size. The file system also supports reading and writing to files, and with no more than 32 file descriptors open simultaneously. After unmounting, the state of the file system is stored in a ``virtual disk'' file in the actual filesystem, and is persistent across multiple executions.
 
 %%% BUILDING %%%
 \section*{Building}
@@ -81,7 +60,16 @@
 
 %%% DESIGN %%%
 \section*{Design \& Implementation}
-% TODO
+\subsection*{The Directory}
+The virtual disk is divided into 8,192 blocks of size 4KB each. The file system uses a linked-allocation-style system to keep track of file locations on the disk. The directory table contains an entry for each file in the directory, up to a maximum of 64. Each entry in the table consists of 16 bytes for the filename (no more than 15 characters in length, padded with null characters), and 2 bytes for the block index of the first sequential block in the file. Under normal circumstances, the first block of the file system (the super block) would hold the locations of this directory table and other important control structures, but because the directory table is guaranteed to be smaller than a single block at all times (see equation~\ref{eq:directorysize}), we store the entire table in the super block.
+
+\begin{equation}
+  \label{eq:directorysize}
+  64 \textrm{ files} \times \left( 16 \textrm{ byte filename} + 2 \textrm{ byte offset} \right) < 4096
+\end{equation}
+
+\subsection*{Linked Allocation}
+In each normal (i.e. non-super) block, the first two bytes are reserved for the index of the next sequential block in the file. If a block is the last block in a file, then this field is set to -2 (arbitrarily). Furthermore, if a block is not allocated to a file, then this field is set to 0. It's useful to note that with this setup, a virtual disk of all 0 is a valid disk -- in fact, this is how new instances of the file system are initialized.
 
 %%% BUGS %%%
 \section*{Known Bugs}
