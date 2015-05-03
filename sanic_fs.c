@@ -181,8 +181,39 @@ int fs_create(char* name){
 }
 
 int fs_delete(char* name){
-  // TODO
-  return -1;
+  /* Find file in directory */
+  int di = search_directory(name);
+  if (di == -1) {
+    fprintf(stderr, "fs_delete: File %s does not exist on disk.\n", name);
+    return -1;
+  }
+
+  /* Make sure no descriptors to this file exist */
+  int i;
+  for (i = 0; i < MAX_DESCRIPTORS; i++) {
+    if (descriptor_table[i].start == directory[di].start) {
+      fprintf(stderr, "fs_delete: There are open descriptors to file %s.\n",
+              name);
+      return -1;
+    }
+  }
+
+  /* Mark all blocks in list as free */
+  int block = directory[di].start;
+  do {
+    int next = get_block_ptr(block);
+
+    if(set_block_ptr(block, BLOCK_FREE)) {
+      fprintf(stderr, "fs_delete: Could not de-allocate blocks on disk.\n");
+    }
+
+    block = next;
+  } while (block >= 0);
+  
+  /* Mark directory entry as free */
+  directory[di].start = 0;
+  
+  return 0;
 }
 
 int fs_read(int fildes, void* buf, size_t nbyte){
