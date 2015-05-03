@@ -51,8 +51,26 @@ int mount_fs(char* disk_name){
 }
 
 int umount_fs(char* disk_name){
-  // TODO
-  return -1;
+  if (descriptors > 0) {
+    fprintf(stderr, "umount_fs: There are still open file descriptors.\n");
+    return -1;
+  }
+
+  /* Copy directory table into super block buffer */
+  char* buffer = malloc(BLOCK_SIZE);
+  memset(buffer, 0, BLOCK_SIZE);
+  memcpy(buffer, &directory, sizeof(directory));
+
+  /* Write super block to disk */
+  block_write(SUPER_BLOCK, buffer);
+  free(buffer);
+
+  if(close_disk()) {
+    fprintf(stderr, "umount_fs: Could not close disk.\n");
+    return -1;
+  }
+
+  return 0;
 }
 
 int fs_open(char* name){
