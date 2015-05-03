@@ -6,7 +6,7 @@ TEX = pdflatex
 README = README.tex
 
 EXEC=
-OBJECTS=
+OBJECTS=disk.o sanic_fs.o
 
 all: $(EXEC)
 
