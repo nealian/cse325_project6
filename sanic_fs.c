@@ -9,6 +9,10 @@ directory_entry directory[MAX_FILES];
 file_descriptor descriptor_table[MAX_DESCRIPTORS];
 int files, descriptors;
 
+/* Helper function prototypes */
+short get_block_ptr(int block);
+int set_block_ptr(int block, short ptr);
+
 int make_fs(char* disk_name){
   if(make_disk(disk_name)) {
     fprintf(stderr, "make_fs: Could not create disk.\n");
@@ -117,7 +121,68 @@ int fs_close(int fildes){
 }
 
 int fs_create(char* name){
-  // TODO
+  /* Check name length < 15 characters */
+  int len = strlen(name);
+  if (len >= MAX_FNAME) {
+    fprintf(stderr, "fs_create: File name too long (> 15 characters).\n");
+    return -1;
+  }
+  
+  /* Get first free entry in directory, and check that name is unique */
+  int di = -1;
+  int i;
+  for (i = 0; i < MAX_FILES; i++) {
+    if (directory[i].start == 0) {
+      /* Entry is free */
+      if (di == -1) {
+        di = i;
+      }
+    } else {
+      /* Entry is used */
+      if (!strcmp(name, directory[i].filename)) {
+        /* Entry name matches new file name! */
+        fprintf(stderr, "fs_create: File %s already exists on disk.\n", name);
+        return -1;
+      }
+    }
+  }
+
+  /* If no entries are free, disk is at capacity */
+  if (di == -1) {
+    fprintf(stderr, "fs_create: Disk is at file capacity (64 files).\n");
+    return -1;
+  }
+
+  /* Allocate first free block */
+  int block_i = -1;
+  for (i = 1; i < DISK_BLOCKS; i++) {
+    if (get_block_ptr(i) == BLOCK_FREE) {
+      block_i = i;
+      break;
+    }
+  }
+
+  /* If no blocks are free, disk is at capacity */
+  if (block_i == -1) {
+    fprintf(stderr, "fs_create: Disk is at block capacity.\n");
+    return -1;
+  }
+  
+  /* Mark block as allocated */
+  if(set_block_ptr(block_i, BLOCK_TERMINATOR)) {
+    fprintf(stderr, "fs_create: Block allocation failed.\n");
+    return -1;
+  }
+    
+  /* Set directory name to new name, and pad with 0s */
+  for (i = 0; i < MAX_FNAME; i++) {
+    directory[di].filename[i] = (i < len ? name[i] : 0);
+  }
+
+  directory[di].start = block_i;
+
+  files++;
+  
   return -1;
 }
 
@@ -149,4 +214,50 @@ int fs_lseek(int fildes, off_t offset){
 int fs_truncate(int fildes, off_t length){
   // TODO
   return -1;
+}
+
+/**
+ * Gets the index of the next block in the chain, stored as the first two bytes
+ * of the block on the disk.
+ *
+ * @param block  Disk index of the block in question.
+ * @return       Disk index of the next block.
+ */
+short get_block_ptr(int block) {
+  char buffer[BLOCK_SIZE];
+
+  if (block_read(block, buffer)) {
+    fprintf(stderr, "get_block_ptr: Error reading block %d.\n", block);
+    return -1;
+  }
+
+  short* as_short = (short*) buffer;
+  return as_short[0];
+}
+
+/**
+ * Sets the index of the next block in the chain, stored as the first two bytes
+ * of the block on the disk. This operation is performed without altering the
+ * content of the block in question.
+ *
+ * @param block  Disk index of the block in question.
+ * @param ptr    Disk index of the next block.
+ * @return       0 on success, -1 on failure.
+ */
+int set_block_ptr(int block, short ptr) {
+  char buffer[BLOCK_SIZE];
+
+  if (block_read(block, buffer)) {
+    fprintf(stderr, "set_block_ptr: Error reading block %d.\n", block);
+    return -1;
+  }
+
+  memcpy(buffer, &ptr, 2);
+
+  if (block_write(block, buffer)) {
+    fprintf(stderr, "set_block_ptr: Error writing block %d.\n", block);
+    return -1;
+  }
+
+  return 0;
 }
