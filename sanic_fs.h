@@ -1,8 +1,8 @@
 #ifndef _SANIC_FS_H_
 #define _SANIC_FS_H_
 
-#define BLOCK_TERMINATOR 0
-#define BLOCK_FREE -1
+#define BLOCK_TERMINATOR -1
+#define BLOCK_FREE 0
 
 #define MAX_FILES 64
 #define MAX_DESCRIPTORS 32
