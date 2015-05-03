@@ -10,8 +10,12 @@ file_descriptor descriptor_table[MAX_DESCRIPTORS];
 int files, descriptors;
 
 int make_fs(char* disk_name){
-  // TODO
-  return -1;
+  if(make_disk(disk_name)) {
+    fprintf(stderr, "make_fs: Could not create disk.\n");
+    return -1;
+  }
+
+  return 0;
 }
 
 int mount_fs(char* disk_name){
