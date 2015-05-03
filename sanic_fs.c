@@ -10,6 +10,7 @@ file_descriptor descriptor_table[MAX_DESCRIPTORS];
 int files, descriptors;
 
 /* Helper function prototypes */
+int search_directory(char* fname);
 short get_block_ptr(int block);
 int set_block_ptr(int block, short ptr);
 
@@ -79,33 +80,26 @@ int umount_fs(char* disk_name){
 
 int fs_open(char* name){
 
-  /* Make sure we can open another file descriptor */
-  if (descriptors >= MAX_DESCRIPTORS) {
-    fprintf(stderr, "fs_open: Too many file descriptors open.\n");
-    return -1;
-  } else {
-    /* Search for filename in directory table */
-    // TODO: we could do this better
-    int i;
-    for (i = 0; i < MAX_FILES; i++) {
-      if (directory[i].start != 0
-          && strcmp(directory[i].filename, name) == 0) {
-        
-        /* Make a new file descriptor and insert into table */
-        int j;
-        for (j = 0; j < MAX_DESCRIPTORS; j++) {
-          if (descriptor_table[j].start == 0) {
-            descriptor_table[j].start = directory[i].start;
-            descriptor_table[j].offset = 0;
-            return j;
-          }
-        }
-      }
-    }
-
-    fprintf(stderr, "fs_open: Could not find file %s\n", name);
+  /* Get file from directory */
+  int di = search_directory(name);
+  if (di == -1) {
+    fprintf(stderr, "fs_open: Couldn't find file %s.\n", name);
     return -1;
   }
+
+  /* Insert new file descriptor into first open slot in table */
+  int i;
+  for (i = 0; i < MAX_DESCRIPTORS; i++) {
+    if (descriptor_table[i].start == 0) {
+      descriptor_table[i].start = directory[di].start;
+      descriptor_table[i].offset = 0;
+      return i;
+    }
+  }
+
+  /* Table is full */
+  fprintf(stderr, "fs_open: Too many open file descriptors.\n");
+  return -1;
 }
 
 int fs_close(int fildes){
@@ -213,6 +207,25 @@ int fs_lseek(int fildes, off_t offset){
 
 int fs_truncate(int fildes, off_t length){
   // TODO
+  return -1;
+}
+
+/**
+ * Search through the directory table for the first file with a given name.
+ *
+ * @param fname  Name of file to search for.
+ * @return       Either the index of the file in the directory table,
+ *               or -1 on failure.
+ */
+int search_directory(char* fname) {
+  int i;
+  for (i = 0; i < MAX_FILES; i++) {
+    if (directory[i].start != 0
+        && !strcmp(fname, directory[i].filename)) {
+      return i;
+    }
+  }
+
   return -1;
 }
 
