@@ -1,6 +1,16 @@
 #ifndef _SANIC_FS_H_
 #define _SANIC_FS_H_
 
+typedef struct t_directory_entry {
+  char* filename; // 16 bytes maximum
+  short start; // block offset
+} directory_entry;
+
+typedef struct t_file_descriptor {
+  short start; // block file offset
+  int offset; // byte offset
+} file_descriptor;
+
 /**
  * Creates a fresh (and empty) file system on the virtual disk with name
  * disk_name. Should invoke make_disk.
