@@ -1,16 +1,17 @@
 #ifndef _SANIC_FS_H_
 #define _SANIC_FS_H_
 
-#define BLOCK_TERMINATOR -1
+#define BLOCK_TERMINATOR -2
 #define BLOCK_FREE 0
 
 #define SUPER_BLOCK 0
 
 #define MAX_FILES 64
 #define MAX_DESCRIPTORS 32
+#define MAX_FNAME 16
 
 typedef struct t_directory_entry {
-  char* filename; // 16 bytes maximum
+  char filename[MAX_FNAME]; // 16 bytes maximum
   short start; // block offset
 } directory_entry;
 
