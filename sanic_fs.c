@@ -177,7 +177,7 @@ int fs_create(char* name){
 
   files++;
   
-  return -1;
+  return 0;
 }
 
 int fs_delete(char* name){
