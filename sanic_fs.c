@@ -11,7 +11,7 @@ int descriptors;
 
 /* Helper function prototypes */
 int search_directory(char* fname);
-short get_block_ptr(int block);
+int get_block_ptr(int block);
 int set_block_ptr(int block, short ptr);
 int fs_read_block(int block, char *buf);
 int fs_write_block(int block, char *buf);
@@ -217,8 +217,57 @@ int fs_read(int filedes, void* buf, size_t nbyte){
 }
 
 int fs_write(int filedes, void* buf, size_t nbyte){
-  // TODO
-  return -1;
+
+  if (fildes < 0 || fildes >= MAX_DESCRIPTORS
+      || descriptor_table[fildes].directory_i == -1) {
+    fprintf(stderr, "fs_write: Invalid file descriptor.\n");
+    return -1;
+  }
+
+  char* buf_as_char = (char*) buf;
+  
+  int block_i = block_at_current_seek(fildes);
+  char block_buffer[BLOCK_SIZE - 2];
+  int sub_i = descriptor_table[fildes].offset % (BLOCK_SIZE - 2);
+
+  int i = 0;
+  while (i < nbyte) {
+    /* Read current block into buffer*/
+    if (fs_read_block(block_i, block_buffer) == -1) {
+      fprintf(stderr, "fs_write: Couldn't read block from disk.\n");
+      return -1;
+    }
+
+    /* Write input buffer to block buffer */
+    for (; sub_i < BLOCK_SIZE - 2 && i < nbyte; sub_i++, i++, descriptor_table[fildes].offset++) {
+      block_buffer[sub_i] = buf_as_char[i];
+    }
+
+    /* Write block buffer to disk */
+    if ((block_i = fs_write_block(block_i, block_buffer)) == -1) {
+      fprintf(stderr, "fs_write: Couldn't write block to disk.\n");
+      return -1;
+    }
+
+    /* Extend file if needed */
+    if (i < nbyte
+        && block_i == BLOCK_TERMINATOR) {
+      if ((block_i = fs_allocate_block()) == -1) {
+        fprintf(stderr, "fs_write: Out of disk space.\n");
+        break;
+      }
+      
+      sub_i = 0;
+    }
+    
+  }
+  
+  if (descriptor_table[fildes].offset >
+      directory[descriptor_table[fildes].directory_i].size) {
+    directory[descriptor_table[fildes].directory_i].size = descriptor_table[fildes].offset;
+  }
+
+  return i;
 }
 
 int fs_get_filesize(int filedes){
@@ -281,6 +330,24 @@ int fs_truncate(int filedes, off_t length){
   return 0;
 }
 
+void print_directory() {
+  printf("Directory table:\n\t[filename]\tstart\tsize\n");
+  int i;
+  for (i = 0; i < MAX_FILES; i++) {
+    printf("\t[%s]\t%d\t%d\n", directory[i].filename, directory[i].start,
+           directory[i].size);
+  }
+}
+
+void print_descriptors() {
+  printf("File Descriptor table:\n\tdir_link\toffset\n");
+  int i;
+  for (i = 0; i < MAX_DESCRIPTORS; i++) {
+    printf("\t%d\t%d\n", descriptor_table[i].directory_i,
+           descriptor_table[i].offset);
+  }
+}
+
 /**
  * Search through the directory table for the first file with a given name.
  *
@@ -307,7 +374,7 @@ int search_directory(char* fname) {
  * @param block  Disk index of the block in question.
  * @return       Disk index of the next block.
  */
-short get_block_ptr(int block) {
+int get_block_ptr(int block) {
   char buffer[BLOCK_SIZE];
 
   if (block_read(block, buffer)) {
@@ -316,7 +383,7 @@ short get_block_ptr(int block) {
   }
 
   short* as_short = (short*) buffer;
-  return as_short[0];
+  return (int) as_short[0];
 }
 
 /**
@@ -355,6 +422,7 @@ int set_block_ptr(int block, short ptr) {
  *               end-of-file.
  */
 int fs_read_block(int block, char *buf) {
+
   char tmp_buf[BLOCK_SIZE];
   int next_block;
 
@@ -442,18 +510,22 @@ int fs_allocate_block(void) {
  *                 if the file is overseeked
  */
 int block_at_current_seek(int filedes) {
-  int next_block = descriptor_table[filedes].start;
-  int i = descriptor_table[filedes].offset;
+  int next_block = directory[descriptor_table[fildes].directory_i].start;
+  int i = descriptor_table[fildes].offset;
 
   for(; i > BLOCK_SIZE - 2; i -= BLOCK_SIZE - 2) {
     if(next_block == BLOCK_TERMINATOR) {
-      fprintf(stderr, "block_at_current_seek: Overseeked the file (fd %d)\n", filedes);
+      fprintf(stderr, "block_at_current_seek: Overseeked the file (fd %d)\n",
+              fildes);
       return BLOCK_TERMINATOR;
-    } else if(((next_block = (int) get_block_ptr(next_block)) == -1)) {
-      fprintf(stderr, "block_at_current_seek: Failed to get next block pointer (fd %d)\n", filedes);
+    } else if((next_block = get_block_ptr(next_block)) == -1) {
+      fprintf(stderr, "block_at_current_seek: Failed to get next "
+              "block pointer (fd %d)\n", fildes);
       return -1;
     }
   }
+
+  return next_block;
 }
 
 /**

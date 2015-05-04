@@ -185,6 +185,21 @@ int test_file_write() {
     return -1;
   }
 
+  /* Check that the file size is as expected */
+  int apparent_size = fs_get_filesize(fd);
+  if(apparent_size != nbytes) {
+    fprintf(stderr, "test_file_write: Expected size %lu, got %d.\n",
+            nbytes, apparent_size);
+    return -1;
+  }
+
+  apparent_size = fs_get_filesize(fd_unused);
+  if(apparent_size != 0) {
+    fprintf(stderr, "test_file_write: Expected size 0, got %d.\n",
+            apparent_size);
+    return -1;
+  }
+  
   /* Delete one of the unused files */
   if (fs_delete(fname3)) {
     fprintf(stderr, "test_file_write: Failed to delete unused file.\n");
@@ -213,6 +228,14 @@ int test_file_write() {
   /* Get descriptor of file written earlier */
   if ((fd = fs_open(fname2)) == -1) {
     fprintf(stderr, "test_file_write: Failed to re-open file.\n");
+    return -1;
+  }
+
+  /* Check that the file size is as expected */
+  apparent_size = fs_get_filesize(fd);
+  if(apparent_size != nbytes) {
+    fprintf(stderr, "test_file_write: Expected size %lu, got %d.\n",
+            nbytes, apparent_size);
     return -1;
   }
 
