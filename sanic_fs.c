@@ -13,6 +13,7 @@ int descriptors;
 int search_directory(char* fname);
 short get_block_ptr(int block);
 int set_block_ptr(int block, short ptr);
+void free_list(int head);
 
 int make_fs(char* disk_name){
   if(make_disk(disk_name)) {
@@ -338,4 +339,19 @@ int set_block_ptr(int block, short ptr) {
   }
 
   return 0;
+}
+
+/**
+ * Frees every block in the list recursively, starting with (head).
+ *
+ * @param head  Index of block to start freeing from.
+ */
+void free_list(int head) {
+  if(head == BLOCK_TERMINATOR || head == BLOCK_FREE) {
+    return;
+  }
+  
+  int tail = get_block_ptr(head);  
+  set_block_ptr(head, BLOCK_FREE);
+  free_list(tail);
 }
