@@ -13,6 +13,10 @@ int files, descriptors;
 int search_directory(char* fname);
 short get_block_ptr(int block);
 int set_block_ptr(int block, short ptr);
+int fs_read_block(int block, char *buf);
+int fs_write_block(int block, char *buf);
+int fs_allocate_block_block(void);
+int block_at_current_seek(int filedes);
 
 int make_fs(char* disk_name){
   if(make_disk(disk_name)) {
@@ -147,36 +151,22 @@ int fs_create(char* name){
     return -1;
   }
 
-  /* Allocate first free block */
-  int block_i = -1;
-  for (i = 1; i < DISK_BLOCKS; i++) {
-    if (get_block_ptr(i) == BLOCK_FREE) {
-      block_i = i;
-      break;
-    }
-  }
-
-  /* If no blocks are free, disk is at capacity */
-  if (block_i == -1) {
-    fprintf(stderr, "fs_create: Disk is at block capacity.\n");
-    return -1;
-  }
-  
-  /* Mark block as allocated */
-  if(set_block_ptr(block_i, BLOCK_TERMINATOR)) {
+  /* Get the next available block */
+  int start_block = fs_allocate_block();
+  if (start_block == -1) {
     fprintf(stderr, "fs_create: Block allocation failed.\n");
     return -1;
   }
-    
+
   /* Set directory name to new name, and pad with 0s */
   for (i = 0; i < MAX_FNAME; i++) {
     directory[di].filename[i] = (i < len ? name[i] : 0);
   }
 
-  directory[di].start = block_i;
+  directory[di].start = start_block;
 
   files++;
-  
+
   return 0;
 }
 
@@ -217,8 +207,10 @@ int fs_delete(char* name){
 }
 
 int fs_read(int fildes, void* buf, size_t nbyte){
-  // TODO
-  return -1;
+  int next_block;
+
+  
+  return 0;
 }
 
 int fs_write(int fildes, void* buf, size_t nbyte){
@@ -304,4 +296,114 @@ int set_block_ptr(int block, short ptr) {
   }
 
   return 0;
+}
+
+/**
+ * Read the whole (BLOCK_SIZE - 2) bytes into buf from block.
+ *
+ * @param block  Block to read from
+ * @param buf    Buffer to write into
+ * @return       Either the next block index, -1 on failure, or -2 on
+ *               end-of-file.
+ */
+int fs_read_block(int block, char *buf) {
+  char tmp_buf[BLOCK_SIZE];
+  int next_block;
+
+  if (block_read(block, tmp_buf)) {
+    fprintf(stderr, "fs_read_block: Error reading the block %d.\n", block);
+    return -1;
+  }
+
+  next_block = ((short *)tmp_buf)[0]; // The first two bytes are the next block
+  memcpy(buf, tmp_buf + 2, BLOCK_SIZE - 2); // Copy (BLOCK_SIZE - 2) bytes into buf, starting at tmp_buf+2
+
+  return next_block;
+}
+
+/**
+ * Write the whole (BLOCK_SIZE - 2) bytes from buf into block.
+ *
+ * @param block  Block to write into
+ * @param buf    Buffer to read from
+ * @return       Either the next block index, -1 on failure, or -2 on (current)
+ *               end-of-file.
+ */
+int fs_write_block(int block, char *buf) {
+  char tmp_buf[BLOCK_SIZE];
+  short next_block;
+
+  if(block_read(block, tmp_buf)) {
+    fprintf(stderr, "fs_write_block: Error reading the block %d.\n", block);
+    return -1;
+  }
+  next_block = ((short *)tmp_buf)[0]; // The first two bytes are the next block
+  memcpy(tmp_buf + 2, buf, BLOCK_SIZE - 2); // Copy (BLOCK_SIZE - 2) bytes into tmp_buf, starting at tmp_buf+2
+
+  if(block_write(block, tmp_buf)) {
+    fprintf(stderr, "fs_write_block: Error writing the block %d.\n", block);
+    return -1;
+  }
+
+  return (int) next_block;
+}
+
+/**
+ * Allocate the first free block, and empty its stale contents.
+ *
+ * @return  The first free block, or -1 on failure
+ */
+int fs_allocate_block(void) {
+  int block_i = -1, i;
+  char zeros[BLOCK_SIZE-2] = {0};
+
+  /* Allocate first free block */
+  for (i = 1; i < DISK_BLOCKS; i++) {
+    if (get_block_ptr(i) == BLOCK_FREE) {
+      block_i = i;
+      break;
+    }
+  }
+
+  /* If no blocks are free, disk is at capacity */
+  if (block_i == -1) {
+    fprintf(stderr, "fs_allocate_block: Disk is at block capacity.\n");
+    return -1;
+  }
+
+  /* Mark block as allocated */
+  if(set_block_ptr(block_i, BLOCK_TERMINATOR)) {
+    fprintf(stderr, "fs_allocate_block: Block allocation on block %d failed.\n", block_i);
+    return -1;
+  }
+
+  /* Clear out the block */
+  if(fs_write_block(block_i, zeros) == -1) {
+    fprintf(stderr, "fs_allocate_block: Block zeroing on block %d failed.\n", block_i);
+    return -1;
+  }
+
+  return block_i;
+}
+
+/**
+ * Return the block that the file descriptor is currently seeked to
+ *
+ * @param filedes  The file descriptor
+ * @return         The block that the file is seeked to, or -1 on failure, or -2
+ *                 if the file is overseeked
+ */
+int block_at_current_seek(int filedes) {
+  int next_block = descriptor_table[fildes].start;
+  int i = descriptor_table[fildes].offset;
+
+  for(; i > BLOCK_SIZE - 2; i -= BLOCK_SIZE - 2) {
+    if(next_block == BLOCK_TERMINATOR) {
+      fprintf(stderr, "block_at_current_seek: Overseeked the file (fd %d)\n", filedes);
+      return BLOCK_TERMINATOR;
+    } else if(((next_block = (int) get_block_ptr(next_block)) == -1)) {
+      fprintf(stderr, "block_at_current_seek: Failed to get next block pointer (fd %d)\n", filedes);
+      return -1;
+    }
+  }
 }
