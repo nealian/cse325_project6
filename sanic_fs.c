@@ -198,8 +198,51 @@ int fs_read(int fildes, void* buf, size_t nbyte){
 }
 
 int fs_write(int fildes, void* buf, size_t nbyte){
-  // TODO
-  return -1;
+
+  if (fildes < 0 || fildes >= MAX_DESCRIPTORS
+      || descriptor_table[fildes].directory_i == -1) {
+    fprintf(stderr, "fs_write: Invalid file descriptor.\n");
+    return -1;
+  }
+
+  char* buf_as_char = (char*) buf;
+  
+  int block_i = block_at_current_seek(fildes);
+  char block_buffer[BLOCK_SIZE - 2];
+  int sub_i = descriptor_table[fildes].offset % (BLOCK_SIZE - 2);
+
+  int i = 0;
+  while (i < nbyte) {
+    /* Read current block into buffer*/
+    if (fs_read_block(block_i, block_buffer) == -1) {
+      fprintf(stderr, "fs_write: Couldn't read block from disk.\n");
+      return -1;
+    }
+    
+    /* Write input buffer to block buffer */
+    for (; sub_i < BLOCK_SIZE - 2 && i < nbyte; sub_i++, i++) {
+      block_buffer[sub_i] = buf_as_char[i];
+    }
+
+    if ((block_i = fs_write_block(block_i, block_buffer)) == -1) {
+      fprintf(stderr, "fs_write: Couldn't write block to disk.\n");
+      return -1;
+    }
+    
+    /* Extend file if needed */
+    if (sub_i == BLOCK_SIZE - 2
+        && block_i == BLOCK_TERMINATOR) {
+      if ((block_i = fs_allocate_block()) == -1) {
+        fprintf(stderr, "fs_write: Out of disk space.\n");
+        return -1;
+      }
+      
+      sub_i = 0;
+    }
+    
+  }
+
+  return i;
 }
 
 int fs_get_filesize(int fildes){
@@ -428,7 +471,7 @@ int block_at_current_seek(int fildes) {
       fprintf(stderr, "block_at_current_seek: Overseeked the file (fd %d)\n",
               fildes);
       return BLOCK_TERMINATOR;
-    } else if(((next_block = (int) get_block_ptr(next_block)) == -1)) {
+    } else if((next_block = get_block_ptr(next_block)) == -1) {
       fprintf(stderr, "block_at_current_seek: Failed to get next "
               "block pointer (fd %d)\n", fildes);
       return -1;
