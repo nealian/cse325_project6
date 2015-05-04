@@ -51,7 +51,7 @@ int write_test_pattern(int file, size_t nbytes) {
 int check_test_pattern(int file, size_t nbytes) {
   char* buffer = malloc(nbytes);
 
-  if (fs_write(file, buffer, nbytes) == -1)  {
+  if (fs_read(file, buffer, nbytes) == -1)  {
     fprintf(stderr, "check_test_pattern: Read failed.\n");
     free(buffer);
     return -1;
@@ -292,9 +292,9 @@ int main(int argc, char** argv) {
   if (test_file_write()) {
     printf("test_file_write failed.\n");
     
-    if (env_cleanup()) {
-      return 1;
-    }
+    /* if (env_cleanup()) { */
+    /*   return 1; */
+    /* } */
   } else {
     printf("test_file_write successful.\n");
   }
