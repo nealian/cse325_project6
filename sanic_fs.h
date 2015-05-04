@@ -13,10 +13,11 @@
 typedef struct t_directory_entry {
   char filename[MAX_FNAME]; // 16 bytes maximum
   short start; // block offset
+  unsigned int size; // file size
 } directory_entry;
 
 typedef struct t_file_descriptor {
-  short start; // block file offset
+  char directory_i; // index in directory
   int offset; // seek offset
 } file_descriptor;
 

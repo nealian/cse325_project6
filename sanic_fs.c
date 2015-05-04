@@ -7,7 +7,7 @@
 
 directory_entry directory[MAX_FILES];
 file_descriptor descriptor_table[MAX_DESCRIPTORS];
-int files, descriptors;
+int descriptors;
 
 /* Helper function prototypes */
 int search_directory(char* fname);
@@ -39,17 +39,11 @@ int mount_fs(char* disk_name){
   memcpy(&directory, buffer, sizeof(directory));
   free(buffer);
 
-  /* Count files */
-  files = 0;
-  int i;
-  for (i = 0; i < MAX_FILES; i++) {
-    if (directory[i].start != 0) {
-      files++;
-    }
-  }
-
   /* Initialize descriptor table */
-  memset(descriptor_table, 0, sizeof(descriptor_table));
+  int i;
+  for (i = 0; i < MAX_DESCRIPTORS; i++) {
+    descriptor_table[i].directory_i = -1;
+  }
   descriptors = 0;
 
   return 0;
@@ -90,8 +84,8 @@ int fs_open(char* name){
   /* Insert new file descriptor into first open slot in table */
   int i;
   for (i = 0; i < MAX_DESCRIPTORS; i++) {
-    if (descriptor_table[i].start == 0) {
-      descriptor_table[i].start = directory[di].start;
+    if (descriptor_table[i].directory_i == -1) {
+      descriptor_table[i].directory_i = di;
       descriptor_table[i].offset = 0;
       return i;
     }
@@ -104,12 +98,11 @@ int fs_open(char* name){
 
 int fs_close(int fildes){
   if (fildes < 0 || fildes >= MAX_DESCRIPTORS
-      || descriptor_table[fildes].start == 0) {
+      || descriptor_table[fildes].directory_i == -1) {
     fprintf(stderr, "fs_close: Invalid file descriptor.\n");
     return -1;
   } else {
-    descriptor_table[fildes].start = 0;
-    descriptor_table[fildes].offset = 0;
+    descriptor_table[fildes].directory_i = -1;
     return 0;
   }
 }
@@ -174,9 +167,8 @@ int fs_create(char* name){
   }
 
   directory[di].start = block_i;
+  directory[di].size = 0;
 
-  files++;
-  
   return 0;
 }
 
@@ -191,7 +183,7 @@ int fs_delete(char* name){
   /* Make sure no descriptors to this file exist */
   int i;
   for (i = 0; i < MAX_DESCRIPTORS; i++) {
-    if (descriptor_table[i].start == directory[di].start) {
+    if (descriptor_table[i].directory_i == di) {
       fprintf(stderr, "fs_delete: There are open descriptors to file %s.\n",
               name);
       return -1;
