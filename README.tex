@@ -1,0 +1,78 @@
+\documentclass[paper=a4, fontsize=11pt]{scrartcl}
+\usepackage[T1]{fontenc}
+\usepackage{fourier} % We're using the Utopia font because it's great.
+\usepackage{enumerate} % Allows for custom enumeration types
+\usepackage{tikz} % Graphics powered by TikZ!
+\usepackage{xcolor} % More colors
+\usepackage{listings} % For shell output
+\usepackage{nameref} % Reference sections by name, since we're avoiding section numbering
+
+\usetikzlibrary{positioning} % Relative positioning of nodes
+\usetikzlibrary{automata} % Handy stuff for state machine diagrams
+\usetikzlibrary{shapes.multipart} % Multiline node labels
+
+\tikzstyle{every state}=[fill=orange!30, draw=orange, very thick]
+\tikzstyle{free}=[fill=white]
+\tikzstyle{link}=[->, draw=cyan, very thick]
+
+\lstdefinestyle{ShellStyle} {
+  basicstyle=\small\ttfamily,
+  numbers=none,
+  frame=tblr,
+  columns=fullflexible,
+  backgroundcolor=\color{blue!10},
+  linewidth=0.9\linewidth,
+  xleftmargin=0.1\linewidth
+}
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} % Horizontal rule with weight arg
+
+\title{
+  \normalfont \normalsize 
+  \textsc{New Mexico Tech} \\ [25pt]
+  \horrule{0.5pt} \\[0.4cm]
+  \huge CSE 325 --- Lab Project 6 \\ Simple File System \\
+  \horrule{2pt} \\[0.5cm]
+}
+
+\author{Rob Kelly \& Ian Neal \\ SANIC TEEM}
+\date{\normalsize\today}
+
+\begin{document}
+\maketitle
+
+%%% INTRODUCTION %%%
+The SANIC TEEM Gotta-Go-FAT Simple File System (hereafter referred to as \textit{the file system}) is a simple-yet-elegant file system simulated in a virtual disk in an existing operating environment. This file system is implemented as a library of access and management functions in \texttt{sanic\_fs.h}, but this distribution also includes a testing harness (\texttt{testrunner.c}) to display the capabilities of the file system. The file system supports creation and deletion of up to 64 files in the single root-level directory, no more than 32MB cumulatively in size. The file system also supports reading and writing to files, and with no more than 32 file descriptors open simultaneously. After unmounting, the state of the file system is stored in a ``virtual disk'' file in the actual filesystem, and is persistent across multiple executions.
+
+%%% BUILDING %%%
+\section*{Building}
+\begin{itemize}
+  \item \texttt{make} to build the project \& testing harness normally.
+
+  \item \texttt{make doc} to build this README. Requires \texttt{pdflatex} and a number of \LaTeX\hspace{0em} packages, all of which are included in the popular \textbf{TeX Live} distribution.
+
+  \item \texttt{make clean} to clean up temporary files, build files, and output.
+\end{itemize} 
+
+%%% USAGE %%%
+\section*{Usage}
+\texttt{./fs\_test}
+
+%%% DESIGN %%%
+\section*{Design \& Implementation}
+\subsection*{The Directory}
+The virtual disk is divided into 8,192 blocks of size 4KB each. The file system uses a linked-allocation-style system to keep track of file locations on the disk. The directory table contains an entry for each file in the directory, up to a maximum of 64. Each entry in the table consists of 16 bytes for the filename (no more than 15 characters in length, padded with null characters), 2 bytes for the block index of the first sequential block in the file, and 4 bytes for the size of the file, which is kept accurate via bookkeeping. Under normal circumstances, the first block of the file system (the super block) would hold the locations of this directory table and other important control structures, but because the directory table is guaranteed to be smaller than a single block at all times (see equation~\ref{eq:directorysize}), we store the entire table in the super block.
+
+\begin{equation}
+  \label{eq:directorysize}
+  64 \textrm{ files} \times \left( 16 \textrm{ byte filename} + 2 \textrm{ byte offset} + 4 \textrm{ byte file size} \right) < 4096
+\end{equation}
+
+\subsection*{Linked Allocation}
+In each normal (i.e. non-super) block, the first two bytes are reserved for the index of the next sequential block in the file. If a block is the last block in a file, then this field is set to -2 (arbitrarily). Furthermore, if a block is not allocated to a file, then this field is set to 0. It's useful to note that with this setup, a virtual disk of all 0 is a valid disk -- in fact, this is how new instances of the file system are initialized.
+
+%%% BUGS %%%
+\section*{Known Bugs}
+The file system functions as described without any bugs, glitches, or unintended behavior as far as the members of SANIC TEEM are aware.
+
+\end{document}
