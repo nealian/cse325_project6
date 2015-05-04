@@ -192,16 +192,7 @@ int fs_delete(char* name){
   }
 
   /* Mark all blocks in list as free */
-  int block = directory[di].start;
-  do {
-    int next = get_block_ptr(block);
-
-    if(set_block_ptr(block, BLOCK_FREE)) {
-      fprintf(stderr, "fs_delete: Could not de-allocate blocks on disk.\n");
-    }
-
-    block = next;
-  } while (block >= 0);
+  free_list(directory[di].start);
   
   /* Mark directory entry as free */
   directory[di].start = 0;
@@ -270,7 +261,7 @@ int fs_truncate(int fildes, off_t length){
       return -1;
     }
 
-    // TODO: mark all blocks in tail as free
+    free_list(tail);
   }
 
   return 0;
