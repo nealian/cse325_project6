@@ -17,7 +17,7 @@ typedef struct t_directory_entry {
 } directory_entry;
 
 typedef struct t_file_descriptor {
-  char directory_i; // index in directory
+  int directory_i; // index in directory
   int offset; // seek offset
 } file_descriptor;
 

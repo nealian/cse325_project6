@@ -13,6 +13,7 @@ int descriptors;
 int search_directory(char* fname);
 short get_block_ptr(int block);
 int set_block_ptr(int block, short ptr);
+void free_list(int head);
 
 int make_fs(char* disk_name){
   if(make_disk(disk_name)) {
@@ -191,16 +192,7 @@ int fs_delete(char* name){
   }
 
   /* Mark all blocks in list as free */
-  int block = directory[di].start;
-  do {
-    int next = get_block_ptr(block);
-
-    if(set_block_ptr(block, BLOCK_FREE)) {
-      fprintf(stderr, "fs_delete: Could not de-allocate blocks on disk.\n");
-    }
-
-    block = next;
-  } while (block >= 0);
+  free_list(directory[di].start);
   
   /* Mark directory entry as free */
   directory[di].start = 0;
@@ -224,13 +216,55 @@ int fs_get_filesize(int fildes){
 }
 
 int fs_lseek(int fildes, off_t offset){
-  // TODO
-  return -1;
+  
+  int fsize = fs_get_filesize(fildes);
+
+  if (fsize == -1) {
+    fprintf(stderr, "fs_lseek: Cannot determine size of file.\n");
+    return -1;
+  }
+  
+  if (offset < 0 || offset > fsize) {
+    fprintf(stderr, "fs_lseek: Seek offset out of bounds.\n");
+    return -1;
+  }
+
+  descriptor_table[fildes].offset = offset;
+  return 0;
 }
 
 int fs_truncate(int fildes, off_t length){
-  // TODO
-  return -1;
+
+  int fsize = fs_get_filesize(fildes);
+  if (fsize == -1) {
+    fprintf(stderr, "fs_truncate: Cannot determine size of file.\n");
+    return -1;
+  }
+
+  if (length > fsize) {
+    fprintf(stderr,
+            "fs_truncate: Cannot truncate to length greater than file size.\n");
+    return -1;
+  } else if (length < fsize) {
+    int new_blocksize = length / (BLOCK_SIZE - 2);
+
+    int block_i = directory[descriptor_table[fildes].directory_i].start;
+    int i;
+    for (i = 0; i < new_blocksize; i++) {
+      block_i = get_block_ptr(block_i);
+    }
+
+    int tail = get_block_ptr(block_i);
+
+    if (set_block_ptr(tail, BLOCK_TERMINATOR)) {
+      fprintf(stderr, "fs_truncate: Couldn't set new file end block.\n");
+      return -1;
+    }
+
+    free_list(tail);
+  }
+
+  return 0;
 }
 
 /**
@@ -296,4 +330,19 @@ int set_block_ptr(int block, short ptr) {
   }
 
   return 0;
+}
+
+/**
+ * Frees every block in the list recursively, starting with (head).
+ *
+ * @param head  Index of block to start freeing from.
+ */
+void free_list(int head) {
+  if(head == BLOCK_TERMINATOR || head == BLOCK_FREE) {
+    return;
+  }
+  
+  int tail = get_block_ptr(head);  
+  set_block_ptr(head, BLOCK_FREE);
+  free_list(tail);
 }
