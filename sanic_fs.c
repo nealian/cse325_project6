@@ -224,8 +224,22 @@ int fs_get_filesize(int fildes){
 }
 
 int fs_lseek(int fildes, off_t offset){
-  // TODO
-  return -1;
+  
+  if (fildes < 0 || fildes >= MAX_DESCRIPTORS
+      || descriptor_table[fildes].directory_i == -1) {
+    fprintf(stderr, "fs_lseek: Invalid file descriptor.\n");
+    return -1;
+  }
+
+  unsigned int fsize = directory[descriptor_table[fildes].directory_i].size;
+  
+  if (offset < 0 || offset > fsize) {
+    fprintf(stderr, "fs_lseek: Seek offset out of bounds.\n");
+    return -1;
+  }
+
+  descriptor_table[fildes].offset = offset;
+  return 0;
 }
 
 int fs_truncate(int fildes, off_t length){
