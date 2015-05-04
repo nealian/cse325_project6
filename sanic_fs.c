@@ -225,7 +225,12 @@ int fs_get_filesize(int fildes){
 
 int fs_lseek(int fildes, off_t offset){
   
-  unsigned int fsize = fs_get_filesize(fildes);
+  int fsize = fs_get_filesize(fildes);
+
+  if (fsize == -1) {
+    fprintf(stderr, "fs_lseek: Cannot determine size of file.\n");
+    return -1;
+  }
   
   if (offset < 0 || offset > fsize) {
     fprintf(stderr, "fs_lseek: Seek offset out of bounds.\n");
