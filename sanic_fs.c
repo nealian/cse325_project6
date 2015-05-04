@@ -7,7 +7,7 @@
 
 directory_entry directory[MAX_FILES];
 file_descriptor descriptor_table[MAX_DESCRIPTORS];
-int files, descriptors;
+int descriptors;
 
 /* Helper function prototypes */
 int search_directory(char* fname);
@@ -15,8 +15,9 @@ short get_block_ptr(int block);
 int set_block_ptr(int block, short ptr);
 int fs_read_block(int block, char *buf);
 int fs_write_block(int block, char *buf);
-int fs_allocate_block_block(void);
-int block_at_current_seek(int filedes);
+int fs_allocate_block(void);
+int block_at_current_seek(int fildes);
+void free_list(int head);
 
 int make_fs(char* disk_name){
   if(make_disk(disk_name)) {
@@ -43,17 +44,11 @@ int mount_fs(char* disk_name){
   memcpy(&directory, buffer, sizeof(directory));
   free(buffer);
 
-  /* Count files */
-  files = 0;
-  int i;
-  for (i = 0; i < MAX_FILES; i++) {
-    if (directory[i].start != 0) {
-      files++;
-    }
-  }
-
   /* Initialize descriptor table */
-  memset(descriptor_table, 0, sizeof(descriptor_table));
+  int i;
+  for (i = 0; i < MAX_DESCRIPTORS; i++) {
+    descriptor_table[i].directory_i = -1;
+  }
   descriptors = 0;
 
   return 0;
@@ -94,8 +89,8 @@ int fs_open(char* name){
   /* Insert new file descriptor into first open slot in table */
   int i;
   for (i = 0; i < MAX_DESCRIPTORS; i++) {
-    if (descriptor_table[i].start == 0) {
-      descriptor_table[i].start = directory[di].start;
+    if (descriptor_table[i].directory_i == -1) {
+      descriptor_table[i].directory_i = di;
       descriptor_table[i].offset = 0;
       return i;
     }
@@ -108,12 +103,11 @@ int fs_open(char* name){
 
 int fs_close(int fildes){
   if (fildes < 0 || fildes >= MAX_DESCRIPTORS
-      || descriptor_table[fildes].start == 0) {
+      || descriptor_table[fildes].directory_i == -1) {
     fprintf(stderr, "fs_close: Invalid file descriptor.\n");
     return -1;
   } else {
-    descriptor_table[fildes].start = 0;
-    descriptor_table[fildes].offset = 0;
+    descriptor_table[fildes].directory_i = -1;
     return 0;
   }
 }
@@ -164,8 +158,7 @@ int fs_create(char* name){
   }
 
   directory[di].start = start_block;
-
-  files++;
+  directory[di].size = 0;
 
   return 0;
 }
@@ -181,7 +174,7 @@ int fs_delete(char* name){
   /* Make sure no descriptors to this file exist */
   int i;
   for (i = 0; i < MAX_DESCRIPTORS; i++) {
-    if (descriptor_table[i].start == directory[di].start) {
+    if (descriptor_table[i].directory_i == di) {
       fprintf(stderr, "fs_delete: There are open descriptors to file %s.\n",
               name);
       return -1;
@@ -189,16 +182,7 @@ int fs_delete(char* name){
   }
 
   /* Mark all blocks in list as free */
-  int block = directory[di].start;
-  do {
-    int next = get_block_ptr(block);
-
-    if(set_block_ptr(block, BLOCK_FREE)) {
-      fprintf(stderr, "fs_delete: Could not de-allocate blocks on disk.\n");
-    }
-
-    block = next;
-  } while (block >= 0);
+  free_list(directory[di].start);
   
   /* Mark directory entry as free */
   directory[di].start = 0;
@@ -224,13 +208,55 @@ int fs_get_filesize(int fildes){
 }
 
 int fs_lseek(int fildes, off_t offset){
-  // TODO
-  return -1;
+  
+  int fsize = fs_get_filesize(fildes);
+
+  if (fsize == -1) {
+    fprintf(stderr, "fs_lseek: Cannot determine size of file.\n");
+    return -1;
+  }
+  
+  if (offset < 0 || offset > fsize) {
+    fprintf(stderr, "fs_lseek: Seek offset out of bounds.\n");
+    return -1;
+  }
+
+  descriptor_table[fildes].offset = offset;
+  return 0;
 }
 
 int fs_truncate(int fildes, off_t length){
-  // TODO
-  return -1;
+
+  int fsize = fs_get_filesize(fildes);
+  if (fsize == -1) {
+    fprintf(stderr, "fs_truncate: Cannot determine size of file.\n");
+    return -1;
+  }
+
+  if (length > fsize) {
+    fprintf(stderr,
+            "fs_truncate: Cannot truncate to length greater than file size.\n");
+    return -1;
+  } else if (length < fsize) {
+    int new_blocksize = length / (BLOCK_SIZE - 2);
+
+    int block_i = directory[descriptor_table[fildes].directory_i].start;
+    int i;
+    for (i = 0; i < new_blocksize; i++) {
+      block_i = get_block_ptr(block_i);
+    }
+
+    int tail = get_block_ptr(block_i);
+
+    if (set_block_ptr(tail, BLOCK_TERMINATOR)) {
+      fprintf(stderr, "fs_truncate: Couldn't set new file end block.\n");
+      return -1;
+    }
+
+    free_list(tail);
+  }
+
+  return 0;
 }
 
 /**
@@ -393,17 +419,36 @@ int fs_allocate_block(void) {
  * @return         The block that the file is seeked to, or -1 on failure, or -2
  *                 if the file is overseeked
  */
-int block_at_current_seek(int filedes) {
-  int next_block = descriptor_table[fildes].start;
+int block_at_current_seek(int fildes) {
+  int next_block = directory[descriptor_table[fildes].directory_i].start;
   int i = descriptor_table[fildes].offset;
 
   for(; i > BLOCK_SIZE - 2; i -= BLOCK_SIZE - 2) {
     if(next_block == BLOCK_TERMINATOR) {
-      fprintf(stderr, "block_at_current_seek: Overseeked the file (fd %d)\n", filedes);
+      fprintf(stderr, "block_at_current_seek: Overseeked the file (fd %d)\n",
+              fildes);
       return BLOCK_TERMINATOR;
     } else if(((next_block = (int) get_block_ptr(next_block)) == -1)) {
-      fprintf(stderr, "block_at_current_seek: Failed to get next block pointer (fd %d)\n", filedes);
+      fprintf(stderr, "block_at_current_seek: Failed to get next "
+              "block pointer (fd %d)\n", fildes);
       return -1;
     }
   }
+
+  return i;
+}
+
+/**
+ * Frees every block in the list recursively, starting with (head).
+ *
+ * @param head  Index of block to start freeing from.
+ */
+void free_list(int head) {
+  if(head == BLOCK_TERMINATOR || head == BLOCK_FREE) {
+    return;
+  }
+  
+  int tail = get_block_ptr(head);  
+  set_block_ptr(head, BLOCK_FREE);
+  free_list(tail);
 }
