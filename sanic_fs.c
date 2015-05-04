@@ -193,8 +193,8 @@ int fs_delete(char* name){
 int fs_read(int filedes, void* buf, size_t nbyte){
   int current_block = block_at_current_seek(filedes);
   int num_read = 0;
-  int loc = descriptors[filedes].offset % (BLOCK_SIZE - 2);
-  char buf[BLOCK_SIZE - 2];
+  int offset_in_block = descriptor_table[filedes].offset % (BLOCK_SIZE - 2);
+  char tmp_buf[BLOCK_SIZE - 2];
 
   if(current_block < 1) {
     // Nothing to read, so, yeah.
@@ -203,17 +203,40 @@ int fs_read(int filedes, void* buf, size_t nbyte){
   }
 
   while((nbyte > 0) && (current_block > 0)) {
-    if((current_block = fs_read_block(current_block, buf)) == -1) {
+    if((current_block = fs_read_block(current_block, tmp_buf)) == -1) {
       fprintf(stderr, "fs_read: Unable to read from file\n");
       return -1;
+    }
+
+    if((nbyte + offset_in_block) <= (BLOCK_SIZE - 2)) {
+      memcpy(buf, tmp_buf + offset_in_block, nbyte);
+      num_read += nbyte;
+      descriptor_table[filedes].offset += nbyte;
+      nbyte = 0;
+      offset_in_block = 0;
+    } else {
+      memcpy(buf, tmp_buf + offset_in_block, (BLOCK_SIZE - 2) - offset_in_block);
+      num_read += (BLOCK_SIZE - 2) - offset_in_block;
+      descriptor_table[filedes].offset += (BLOCK_SIZE - 2) - offset_in_block;
+      nbyte -= (BLOCK_SIZE - 2) - offset_in_block;
+      offset_in_block = 0;
     }
   }
 
   if((nbyte > 0) && (current_block == BLOCK_TERMINATOR)) {
-
+    if((nbyte + descriptor_table[filedes].offset) < directory[descriptor_table[filedes].directory_i].size) {
+      memcpy(buf, tmp_buf + offset_in_block, nbyte);
+      num_read += nbyte;
+      descriptor_table[filedes].offset += nbyte;
+      nbyte = 0;
+    } else {
+      memcpy(buf, tmp_buf + offset_in_block, directory[descriptor_table[filedes].directory_i].size - descriptor_table[filedes].offset);
+      num_read += directory[descriptor_table[filedes].directory_i].size - descriptor_table[filedes].offset;
+      descriptor_table[filedes].offset += directory[descriptor_table[filedes].directory_i].size - descriptor_table[filedes].offset;
+    }
   }
 
-  return 0;
+  return num_read;
 }
 
 int fs_write(int filedes, void* buf, size_t nbyte){
