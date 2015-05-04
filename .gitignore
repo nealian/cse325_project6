@@ -21,6 +21,7 @@
 *.dylib
 
 # Executables
+fs_test
 *.exe
 *.out
 *.app
@@ -35,6 +36,7 @@
 # Other output
 auto
 *.pdf
+*.fs
 
 # Editor files
 *~
