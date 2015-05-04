@@ -218,17 +218,17 @@ int fs_read(int filedes, void* buf, size_t nbyte){
 
 int fs_write(int filedes, void* buf, size_t nbyte){
 
-  if (fildes < 0 || fildes >= MAX_DESCRIPTORS
-      || descriptor_table[fildes].directory_i == -1) {
+  if (filedes < 0 || filedes >= MAX_DESCRIPTORS
+      || descriptor_table[filedes].directory_i == -1) {
     fprintf(stderr, "fs_write: Invalid file descriptor.\n");
     return -1;
   }
 
   char* buf_as_char = (char*) buf;
   
-  int block_i = block_at_current_seek(fildes);
+  int block_i = block_at_current_seek(filedes);
   char block_buffer[BLOCK_SIZE - 2];
-  int sub_i = descriptor_table[fildes].offset % (BLOCK_SIZE - 2);
+  int sub_i = descriptor_table[filedes].offset % (BLOCK_SIZE - 2);
 
   int i = 0;
   while (i < nbyte) {
@@ -239,7 +239,7 @@ int fs_write(int filedes, void* buf, size_t nbyte){
     }
 
     /* Write input buffer to block buffer */
-    for (; sub_i < BLOCK_SIZE - 2 && i < nbyte; sub_i++, i++, descriptor_table[fildes].offset++) {
+    for (; sub_i < BLOCK_SIZE - 2 && i < nbyte; sub_i++, i++, descriptor_table[filedes].offset++) {
       block_buffer[sub_i] = buf_as_char[i];
     }
 
@@ -262,9 +262,9 @@ int fs_write(int filedes, void* buf, size_t nbyte){
     
   }
   
-  if (descriptor_table[fildes].offset >
-      directory[descriptor_table[fildes].directory_i].size) {
-    directory[descriptor_table[fildes].directory_i].size = descriptor_table[fildes].offset;
+  if (descriptor_table[filedes].offset >
+      directory[descriptor_table[filedes].directory_i].size) {
+    directory[descriptor_table[filedes].directory_i].size = descriptor_table[filedes].offset;
   }
 
   return i;
@@ -510,17 +510,17 @@ int fs_allocate_block(void) {
  *                 if the file is overseeked
  */
 int block_at_current_seek(int filedes) {
-  int next_block = directory[descriptor_table[fildes].directory_i].start;
-  int i = descriptor_table[fildes].offset;
+  int next_block = directory[descriptor_table[filedes].directory_i].start;
+  int i = descriptor_table[filedes].offset;
 
   for(; i > BLOCK_SIZE - 2; i -= BLOCK_SIZE - 2) {
     if(next_block == BLOCK_TERMINATOR) {
       fprintf(stderr, "block_at_current_seek: Overseeked the file (fd %d)\n",
-              fildes);
+              filedes);
       return BLOCK_TERMINATOR;
     } else if((next_block = get_block_ptr(next_block)) == -1) {
       fprintf(stderr, "block_at_current_seek: Failed to get next "
-              "block pointer (fd %d)\n", fildes);
+              "block pointer (fd %d)\n", filedes);
       return -1;
     }
   }
