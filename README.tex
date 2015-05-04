@@ -61,11 +61,11 @@ The SANIC TEEM Gotta-Go-FAT Simple File System (hereafter referred to as \textit
 %%% DESIGN %%%
 \section*{Design \& Implementation}
 \subsection*{The Directory}
-The virtual disk is divided into 8,192 blocks of size 4KB each. The file system uses a linked-allocation-style system to keep track of file locations on the disk. The directory table contains an entry for each file in the directory, up to a maximum of 64. Each entry in the table consists of 16 bytes for the filename (no more than 15 characters in length, padded with null characters), and 2 bytes for the block index of the first sequential block in the file. Under normal circumstances, the first block of the file system (the super block) would hold the locations of this directory table and other important control structures, but because the directory table is guaranteed to be smaller than a single block at all times (see equation~\ref{eq:directorysize}), we store the entire table in the super block.
+The virtual disk is divided into 8,192 blocks of size 4KB each. The file system uses a linked-allocation-style system to keep track of file locations on the disk. The directory table contains an entry for each file in the directory, up to a maximum of 64. Each entry in the table consists of 16 bytes for the filename (no more than 15 characters in length, padded with null characters), 2 bytes for the block index of the first sequential block in the file, and 4 bytes for the size of the file, which is kept accurate via bookkeeping. Under normal circumstances, the first block of the file system (the super block) would hold the locations of this directory table and other important control structures, but because the directory table is guaranteed to be smaller than a single block at all times (see equation~\ref{eq:directorysize}), we store the entire table in the super block.
 
 \begin{equation}
   \label{eq:directorysize}
-  64 \textrm{ files} \times \left( 16 \textrm{ byte filename} + 2 \textrm{ byte offset} \right) < 4096
+  64 \textrm{ files} \times \left( 16 \textrm{ byte filename} + 2 \textrm{ byte offset} + 4 \textrm{ byte file size} \right) < 4096
 \end{equation}
 
 \subsection*{Linked Allocation}
