@@ -242,8 +242,37 @@ int fs_lseek(int fildes, off_t offset){
 }
 
 int fs_truncate(int fildes, off_t length){
-  // TODO
-  return -1;
+
+  int fsize = fs_get_filesize(fildes);
+  if (fsize == -1) {
+    fprintf(stderr, "fs_truncate: Cannot determine size of file.\n");
+    return -1;
+  }
+
+  if (length > fsize) {
+    fprintf(stderr,
+            "fs_truncate: Cannot truncate to length greater than file size.\n");
+    return -1;
+  } else if (length < fsize) {
+    int new_blocksize = length / (BLOCK_SIZE - 2);
+
+    int block_i = directory[descriptor_table[fildes].directory_i].start;
+    int i;
+    for (i = 0; i < new_blocksize; i++) {
+      block_i = get_block_ptr(block_i);
+    }
+
+    int tail = get_block_ptr(block_i);
+
+    if (set_block_ptr(tail, BLOCK_TERMINATOR)) {
+      fprintf(stderr, "fs_truncate: Couldn't set new file end block.\n");
+      return -1;
+    }
+
+    // TODO: mark all blocks in tail as free
+  }
+
+  return 0;
 }
 
 /**
