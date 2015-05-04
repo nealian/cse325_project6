@@ -57,11 +57,11 @@ int umount_fs(char* disk_name);
 int fs_open(char* name);
 
 /**
- * Closes the file descriptor fildes.
+ * Closes the file descriptor filedes.
  *
- * @return  0 on success, and -1 if the fildes does not exist or is not open.
+ * @return  0 on success, and -1 if the filedes does not exist or is not open.
  */
-int fs_close(int fildes);
+int fs_close(int filedes);
 
 /**
  * Creates a new file with name name in the root directory of the file system.
@@ -79,41 +79,41 @@ int fs_delete(char* name);
 
 /**
  * Attempts to read nbyte bytes of data from the file referenced by the
- * descriptor fildes into the buffer pointed to by buf.
+ * descriptor filedes into the buffer pointed to by buf.
  *
  * @return  Number of bytes read on success, -1 on failure.
  */
-int fs_read(int fildes, void* buf, size_t nbyte);
+int fs_read(int filedes, void* buf, size_t nbyte);
 
 /**
  * Attempts to write nbyte bytes of data to the file referenced by the
- * descriptor fildes from the buffer pointed to by buf.
+ * descriptor filedes from the buffer pointed to by buf.
  *
  * @return  Number of bytes actually written on success, -1 on failure.
  */
-int fs_write(int fildes, void* buf, size_t nbyte);
+int fs_write(int filedes, void* buf, size_t nbyte);
 
 /**
  * @return  The current size of the file pointed to by the file descriptor
- *          fildes. In case fildes is invalid, returns -1.
+ *          filedes. In case filedes is invalid, returns -1.
  */
-int fs_get_filesize(int fildes);
+int fs_get_filesize(int filedes);
 
 /**
  * Sets the file pointer (the offset used for read and write operations)
- * associated with the file descriptorfildes to the argument offset.
+ * associated with the file descriptorfiledes to the argument offset.
  *
  * @return  0 on success, -1 on failure.
  */
-int fs_lseek(int fildes, off_t offset);
+int fs_lseek(int filedes, off_t offset);
 
 /**
- * Causes the file referenced by fildes to be truncated to length bytes in size.
+ * Causes the file referenced by filedes to be truncated to length bytes in size.
  * If the file was previously larger than this new size, the extra data is lost
  * and the corresponding data blocks on disk (if any) must be freed.
  *
  * @return  0 on success, -1 on failure.
  */
-int fs_truncate(int fildes, off_t length);
+int fs_truncate(int filedes, off_t length);
 
 #endif

@@ -15,7 +15,7 @@ short get_block_ptr(int block);
 int set_block_ptr(int block, short ptr);
 int fs_read_block(int block, char *buf);
 int fs_write_block(int block, char *buf);
-int fs_allocate_block_block(void);
+int fs_allocate_block(void);
 int block_at_current_seek(int filedes);
 void free_list(int head);
 
@@ -101,13 +101,13 @@ int fs_open(char* name){
   return -1;
 }
 
-int fs_close(int fildes){
-  if (fildes < 0 || fildes >= MAX_DESCRIPTORS
-      || descriptor_table[fildes].directory_i == -1) {
+int fs_close(int filedes){
+  if (filedes < 0 || filedes >= MAX_DESCRIPTORS
+      || descriptor_table[filedes].directory_i == -1) {
     fprintf(stderr, "fs_close: Invalid file descriptor.\n");
     return -1;
   } else {
-    descriptor_table[fildes].directory_i = -1;
+    descriptor_table[filedes].directory_i = -1;
     return 0;
   }
 }
@@ -190,26 +190,48 @@ int fs_delete(char* name){
   return 0;
 }
 
-int fs_read(int fildes, void* buf, size_t nbyte){
-  int next_block;
+int fs_read(int filedes, void* buf, size_t nbyte){
+  int current_block = block_at_current_seek(filedes);
+  int num_read = 0;
+  int loc = descriptors[filedes].offset % (BLOCK_SIZE - 2);
+  char buf[BLOCK_SIZE - 2];
 
-  
+  if(current_block < 1) {
+    // Nothing to read, so, yeah.
+    fprintf(stderr, "fs_read: Unable to read at current position in file (fd %d)", filedes);
+    return -1;
+  }
+
+  while((nbyte > 0) && (current_block > 0)) {
+    if((current_block = fs_read_block(current_block, buf)) == -1) {
+      fprintf(stderr, "fs_read: Unable to read from file\n");
+      return -1;
+    }
+  }
+
+  if((nbyte > 0) && (current_block == BLOCK_TERMINATOR)) {
+
+  }
+
   return 0;
 }
 
-int fs_write(int fildes, void* buf, size_t nbyte){
+int fs_write(int filedes, void* buf, size_t nbyte){
   // TODO
   return -1;
 }
 
-int fs_get_filesize(int fildes){
-  // TODO
-  return -1;
+int fs_get_filesize(int filedes){
+  if (descriptor_table[filedes].directory_i < 0) {
+    fprintf(stderr, "fs_get_filesize: File descriptor closed (fd %d)\n", filedes);
+    return -1;
+  }
+  return directory[descriptor_table[filedes].directory_i].size;
 }
 
-int fs_lseek(int fildes, off_t offset){
+int fs_lseek(int filedes, off_t offset){
   
-  int fsize = fs_get_filesize(fildes);
+  int fsize = fs_get_filesize(filedes);
 
   if (fsize == -1) {
     fprintf(stderr, "fs_lseek: Cannot determine size of file.\n");
@@ -221,13 +243,13 @@ int fs_lseek(int fildes, off_t offset){
     return -1;
   }
 
-  descriptor_table[fildes].offset = offset;
+  descriptor_table[filedes].offset = offset;
   return 0;
 }
 
-int fs_truncate(int fildes, off_t length){
+int fs_truncate(int filedes, off_t length){
 
-  int fsize = fs_get_filesize(fildes);
+  int fsize = fs_get_filesize(filedes);
   if (fsize == -1) {
     fprintf(stderr, "fs_truncate: Cannot determine size of file.\n");
     return -1;
@@ -240,7 +262,7 @@ int fs_truncate(int fildes, off_t length){
   } else if (length < fsize) {
     int new_blocksize = length / (BLOCK_SIZE - 2);
 
-    int block_i = directory[descriptor_table[fildes].directory_i].start;
+    int block_i = directory[descriptor_table[filedes].directory_i].start;
     int i;
     for (i = 0; i < new_blocksize; i++) {
       block_i = get_block_ptr(block_i);
@@ -420,8 +442,8 @@ int fs_allocate_block(void) {
  *                 if the file is overseeked
  */
 int block_at_current_seek(int filedes) {
-  int next_block = descriptor_table[fildes].start;
-  int i = descriptor_table[fildes].offset;
+  int next_block = descriptor_table[filedes].start;
+  int i = descriptor_table[filedes].offset;
 
   for(; i > BLOCK_SIZE - 2; i -= BLOCK_SIZE - 2) {
     if(next_block == BLOCK_TERMINATOR) {
