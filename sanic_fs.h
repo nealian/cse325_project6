@@ -116,4 +116,17 @@ int fs_lseek(int fildes, off_t offset);
  */
 int fs_truncate(int fildes, off_t length);
 
+/**
+ * Print out the contents of the directory table to standard out. Useful for
+ * debugging.
+ */
+void print_directory();
+
+/**
+ * Print out the contents of the descriptor table to standard out. Useful for
+ * debugging.
+ */
+void print_descriptors();
+
+
 #endif

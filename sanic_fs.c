@@ -302,6 +302,22 @@ int fs_truncate(int fildes, off_t length){
   return 0;
 }
 
+void print_directory() {
+  printf("Directory table:\n\t[filename]\tstart\n");
+  int i;
+  for (i = 0; i < MAX_FILES; i++) {
+    printf("\t[%s]\t%d\n", directory[i].filename, directory[i].start);
+  }
+}
+
+void print_descriptors() {
+  printf("File Descriptor table:\n\tstart\toffset\n");
+  int i;
+  for (i = 0; i < MAX_FILES; i++) {
+    printf("\t%d\t%d\n", descriptor_table[i].start, descriptor_table[i].offset);
+  }
+}
+
 /**
  * Search through the directory table for the first file with a given name.
  *
