@@ -11,7 +11,7 @@ int descriptors;
 
 /* Helper function prototypes */
 int search_directory(char* fname);
-short get_block_ptr(int block);
+int get_block_ptr(int block);
 int set_block_ptr(int block, short ptr);
 int fs_read_block(int block, char *buf);
 int fs_write_block(int block, char *buf);
@@ -218,28 +218,34 @@ int fs_write(int fildes, void* buf, size_t nbyte){
       fprintf(stderr, "fs_write: Couldn't read block from disk.\n");
       return -1;
     }
-    
+
     /* Write input buffer to block buffer */
-    for (; sub_i < BLOCK_SIZE - 2 && i < nbyte; sub_i++, i++) {
+    for (; sub_i < BLOCK_SIZE - 2 && i < nbyte; sub_i++, i++, descriptor_table[fildes].offset++) {
       block_buffer[sub_i] = buf_as_char[i];
     }
 
+    /* Write block buffer to disk */
     if ((block_i = fs_write_block(block_i, block_buffer)) == -1) {
       fprintf(stderr, "fs_write: Couldn't write block to disk.\n");
       return -1;
     }
-    
+
     /* Extend file if needed */
-    if (sub_i == BLOCK_SIZE - 2
+    if (i < nbyte
         && block_i == BLOCK_TERMINATOR) {
       if ((block_i = fs_allocate_block()) == -1) {
         fprintf(stderr, "fs_write: Out of disk space.\n");
-        return -1;
+        break;
       }
       
       sub_i = 0;
     }
     
+  }
+  
+  if (descriptor_table[fildes].offset >
+      directory[descriptor_table[fildes].directory_i].size) {
+    directory[descriptor_table[fildes].directory_i].size = descriptor_table[fildes].offset;
   }
 
   return i;
@@ -303,18 +309,20 @@ int fs_truncate(int fildes, off_t length){
 }
 
 void print_directory() {
-  printf("Directory table:\n\t[filename]\tstart\n");
+  printf("Directory table:\n\t[filename]\tstart\tsize\n");
   int i;
   for (i = 0; i < MAX_FILES; i++) {
-    printf("\t[%s]\t%d\n", directory[i].filename, directory[i].start);
+    printf("\t[%s]\t%d\t%d\n", directory[i].filename, directory[i].start,
+           directory[i].size);
   }
 }
 
 void print_descriptors() {
-  printf("File Descriptor table:\n\tstart\toffset\n");
+  printf("File Descriptor table:\n\tdir_link\toffset\n");
   int i;
-  for (i = 0; i < MAX_FILES; i++) {
-    printf("\t%d\t%d\n", descriptor_table[i].start, descriptor_table[i].offset);
+  for (i = 0; i < MAX_DESCRIPTORS; i++) {
+    printf("\t%d\t%d\n", descriptor_table[i].directory_i,
+           descriptor_table[i].offset);
   }
 }
 
@@ -344,7 +352,7 @@ int search_directory(char* fname) {
  * @param block  Disk index of the block in question.
  * @return       Disk index of the next block.
  */
-short get_block_ptr(int block) {
+int get_block_ptr(int block) {
   char buffer[BLOCK_SIZE];
 
   if (block_read(block, buffer)) {
@@ -353,7 +361,7 @@ short get_block_ptr(int block) {
   }
 
   short* as_short = (short*) buffer;
-  return as_short[0];
+  return (int) as_short[0];
 }
 
 /**
@@ -392,6 +400,7 @@ int set_block_ptr(int block, short ptr) {
  *               end-of-file.
  */
 int fs_read_block(int block, char *buf) {
+
   char tmp_buf[BLOCK_SIZE];
   int next_block;
 
@@ -494,7 +503,7 @@ int block_at_current_seek(int fildes) {
     }
   }
 
-  return i;
+  return next_block;
 }
 
 /**
