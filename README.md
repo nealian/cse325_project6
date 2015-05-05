@@ -3,8 +3,6 @@
 
 This is SANIC_TEEM's File System, implemented for project 6 of CSE 325 at NMT!
 
-// TODO: make better README
-
 ### Design
 
 The first block of the filesystem is unique, and contains the file allocation table (FAT). Every file in the system (up to 64) has an entry in the FAT, consisting of the filename as a string (up to 15 characters) and the offset of the first block in the file.
