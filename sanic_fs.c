@@ -209,13 +209,13 @@ int fs_read(int filedes, void* buf, size_t nbyte){
     }
 
     if((nbyte + offset_in_block) <= (BLOCK_SIZE - 2)) {
-      memcpy(buf, tmp_buf + offset_in_block, nbyte);
+      memcpy(buf + num_read, tmp_buf + offset_in_block, nbyte);
       num_read += nbyte;
       descriptor_table[filedes].offset += nbyte;
       nbyte = 0;
       offset_in_block = 0;
     } else {
-      memcpy(buf, tmp_buf + offset_in_block, (BLOCK_SIZE - 2) - offset_in_block);
+      memcpy(buf + num_read, tmp_buf + offset_in_block, (BLOCK_SIZE - 2) - offset_in_block);
       num_read += (BLOCK_SIZE - 2) - offset_in_block;
       descriptor_table[filedes].offset += (BLOCK_SIZE - 2) - offset_in_block;
       nbyte -= (BLOCK_SIZE - 2) - offset_in_block;
@@ -225,12 +225,12 @@ int fs_read(int filedes, void* buf, size_t nbyte){
 
   if((nbyte > 0) && (current_block == BLOCK_TERMINATOR)) {
     if((nbyte + descriptor_table[filedes].offset) < directory[descriptor_table[filedes].directory_i].size) {
-      memcpy(buf, tmp_buf + offset_in_block, nbyte);
+      memcpy(buf + num_read, tmp_buf + offset_in_block, nbyte);
       num_read += nbyte;
       descriptor_table[filedes].offset += nbyte;
       nbyte = 0;
     } else {
-      memcpy(buf, tmp_buf + offset_in_block, directory[descriptor_table[filedes].directory_i].size - descriptor_table[filedes].offset);
+      memcpy(buf + num_read, tmp_buf + offset_in_block, directory[descriptor_table[filedes].directory_i].size - descriptor_table[filedes].offset);
       num_read += directory[descriptor_table[filedes].directory_i].size - descriptor_table[filedes].offset;
       descriptor_table[filedes].offset += directory[descriptor_table[filedes].directory_i].size - descriptor_table[filedes].offset;
     }
@@ -267,22 +267,30 @@ int fs_write(int filedes, void* buf, size_t nbyte){
     }
 
     /* Write block buffer to disk */
-    if ((block_i = fs_write_block(block_i, block_buffer)) == -1) {
+    int new_block;
+    if ((new_block = fs_write_block(block_i, block_buffer)) == -1) {
       fprintf(stderr, "fs_write: Couldn't write block to disk.\n");
       return -1;
     }
 
     /* Extend file if needed */
     if (i < nbyte
-        && block_i == BLOCK_TERMINATOR) {
-      if ((block_i = fs_allocate_block()) == -1) {
+        && new_block == BLOCK_TERMINATOR) {
+      
+      if ((new_block = fs_allocate_block()) == -1) {
         fprintf(stderr, "fs_write: Out of disk space.\n");
         break;
       }
-      
+
+      if (set_block_ptr(block_i, new_block)) {
+        fprintf(stderr, "fs_write: Block allocation failed.\n");
+        break;
+      }
+
       sub_i = 0;
     }
-    
+
+    block_i = new_block;
   }
   
   if (descriptor_table[filedes].offset >
