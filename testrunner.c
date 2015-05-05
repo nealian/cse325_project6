@@ -61,6 +61,7 @@ int check_test_pattern(int file, size_t nbytes) {
   for(i = 0; i < nbytes; i++) {
     if(buffer[i] != 'a' + (i % ('z' - 'a'))) {
       fprintf(stderr, "check_test_pattern: Pattern mismatch at byte %d.\n", i);
+      fprintf(stderr, "Expected %c, got %c\n", 'a' + (i % ('z' - 'a')), buffer[i]);
       free(buffer);
       return -1;
     }
